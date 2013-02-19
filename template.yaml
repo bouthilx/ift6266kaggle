@@ -5,13 +5,17 @@
 		        stop: 3000
 		},
     model: !obj:pylearn2.models.mlp.MLP {
-        layers: [!obj:pylearn2.models.mlp.Softmax {
+        layers:  [ !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h0',
+                     dim: 2000,
+                     sparse_init: 15,
+                 }, !obj:pylearn2.models.mlp.Softmax {
                      layer_name: 'y',
                      n_classes: 7,
                      irange: 0.
                  }
                 ],
-        nvis: 2304,
+       nvis: 2304,
     },
     algorithm: !obj:pylearn2.training_algorithms.bgd.BGD {
         batch_size: 100,
@@ -31,9 +35,14 @@
                               stop: 4170
                           }
             },
-        cost: !obj:pylearn2.costs.cost.MethodCost {
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
                 method: 'cost_from_X',
                 supervised: 1
+            }, !obj:pylearn2.models.mlp.WeightDecay {
+                coeffs: [ %(wd1)e, %(wd2)e ]
+            }
+            ]
         },
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: "valid_y_misclass"

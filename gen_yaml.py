@@ -111,6 +111,7 @@ def main(argv):
         local_generate = ""
 
         s_line = filter(lambda a:a.strip(' ')!='',line.split(' '))
+        s_line = [s.strip("\n").strip("\t") for s in s_line]
        
         if len(s_line)==5:
             hparam, hpmin, hpmax, hpnb, local_generate = s_line
@@ -128,7 +129,12 @@ def main(argv):
         if _verbose:
             print hparam, " : ", hpmin, hpmax, hpnb
             print "    ", hyperparams[hparam]
-        default_hparams[hparam] = (hpmax+hpmin)/2.0
+
+        if ((local_generate and local_generate[:3]=="log") or 
+            (not local_generate and generate[:3]=="log")):
+            default_hparams[hparam] = np.exp((np.log(hpmax)+np.log(hpmin))/2.0)
+        else:
+            default_hparams[hparam] = (hpmax+hpmin)/2.0
 
 
 
@@ -150,8 +156,7 @@ def main(argv):
             try:
                 tmp_template = template % default_hparams
             except KeyError as e:
-                print e
-                print "The key is not present in %(hparamsfile) or you forgot the save_path key" % args[1]
+                print "The key %(e)s is not present in %(hparamsfile)s" % {'e':e,'hparamsfile':args[1]}
                 error()
 
             file_name += '.yaml'
