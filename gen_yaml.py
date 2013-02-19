@@ -17,7 +17,7 @@ generation_modes = {
     "log-uniform": 
         lambda hpmin, hpmax, hpnb :
             list(np.exp(np.arange(np.log(hpmin),np.log(hpmax),
-                                  (-np.log(hpmin)-np.log(hpmax))/(hpnb+.0)))),
+                                  (np.log(hpmax)-np.log(hpmin))/(hpnb+.0)))),
     "log-random-uniform": 
         lambda hpmin, hpmax, hpnb : 
             list(np.exp(np.random.uniform(np.log(hpmin),
@@ -31,6 +31,197 @@ generation_modes = {
             list(np.random.uniform(hpmin,hpmax,hpnb)),
 }
 
+class HparamReader():
+    def __init__(self,file_name):
+        self.i = iter(filter(lambda a: a.strip(" ")[0]!="#" and a.strip(" ").strip("\n")!="",
+                             open(file_name,'r').readlines()))
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        return self.build_hparam(self.i.next())
+
+    def build_hparam(self,line):
+        s_line = filter(lambda a:a.strip(' ')!='',line.split(' '))
+        s_line = filter(lambda a:a.strip(' ')!='',[s.strip("\n").strip("\t") for s in s_line])
+
+
+        if len(s_line)< 4 or len(s_line)>6:
+            print "Incorrect hyper-parameter configuration"
+            print line.strip("\n")
+            print "# Hyper-parameters  min     max     how much"
+            error()
+
+        d = dict(zip(["hparam","hpmin","hpmax","hpnb","generate","default"],s_line))
+        
+        for h in ["hpmin","hpmax","default"]:
+            if h in d.keys():
+                d[h] = float(d[h])
+
+        for h in ["hpnb"]:
+            if h in d:
+                d[h] = int(d[h])
+ 
+        return d
+
+def randomsearch(hparamfile,generate):
+
+    hparams = []
+    names = []
+    hpnb = None
+
+    for hparam in HparamReader(hparamfile):
+        
+        if not hpnb:
+            hpnb = hparam['hpnb']
+
+        if "generate" not in hparam or hparam["generate"] in ["default",""]:
+            if hparam["generate"]=="":
+                print "*** Warning ***"
+                print "    Hyperparameter",hparam["hparam"]
+                print "    Please set generation mode : default"
+
+            hparam["generate"] = generate
+
+        if 'default' in hparam:
+            hparam.pop('default')
+
+        hparam['hpnb'] = hpnb
+
+        if "random" not in hparam["generate"]:
+            print "*** Warning ***"
+            print "    Hyperparameter",hparam["hparam"],": Random search, Generation function =", generate
+            print "    Random search but not a random value generation? Are you sure that's what you want?"
+
+        names.append(hparam.pop("hparam"))
+        hparams.append(make_hparams(**hparam))
+
+    values = np.zeros((sum([len(hparam) for hparam in hparams]),len(hparams)))
+
+    return names, np.transpose(np.array(hparams))
+
+
+def fixgridsearch(hparamfile,generate):
+
+    hparams = []
+    dhparams = []
+    names = []
+
+    for hparam in HparamReader(hparamfile):
+
+        if "generate" not in hparam or hparam["generate"] in ["default",""]:
+            if hparam["generate"]=="":
+                print "*** Warning ***"
+                print "    Hyperparameter",hparam["hparam"]
+                print "    Please set generation mode : default"
+
+            hparam["generate"] = generate
+
+        default = None
+        if "default" in hparam :
+            default = hparam.pop("default")
+            
+
+        names.append(hparam.pop("hparam"))
+        hparams.append(make_hparams(**hparam))
+
+        if not default:
+            default = hparams[-1][int(hparam['hpnb'])/2]
+
+        dhparams.append(default)
+
+
+
+    values = np.zeros((sum([len(hparam) for hparam in hparams]),len(hparams)))
+
+    j = 0
+    for i, hparam in enumerate(hparams):
+        values[j:j+len(hparam)] = np.array(dhparams)
+        values[j:j+len(hparam),i] = np.array(hparam)
+
+        j += len(hparam)
+
+    return names, values
+
+def cartesian(arrays, out=None):
+    """
+    Generate a cartesian product of input arrays.
+
+    Parameters
+    ----------
+    arrays : list of array-like
+    1-D arrays to form the cartesian product of.
+    out : ndarray
+    Array to place the cartesian product in.
+
+    Returns
+    -------
+    out : ndarray
+    2-D array of shape (M, len(arrays)) containing cartesian products
+    formed of input arrays.
+
+    Examples
+    --------
+    >>> cartesian(([1, 2, 3], [4, 5], [6, 7]))
+    array([[1, 4, 6],
+           [1, 4, 7],
+           [1, 5, 6],
+           [1, 5, 7],
+           [2, 4, 6],
+           [2, 4, 7],
+           [2, 5, 6],
+           [2, 5, 7],
+           [3, 4, 6],
+           [3, 4, 7],
+           [3, 5, 6],
+           [3, 5, 7]])
+
+    """
+
+    arrays = [np.asarray(x) for x in arrays]
+    dtype = arrays[0].dtype
+
+    n = np.prod([x.size for x in arrays])
+    if out is None:
+        out = np.zeros([n, len(arrays)], dtype=dtype)
+
+    m = n / arrays[0].size
+    out[:,0] = np.repeat(arrays[0], m)
+    if arrays[1:]:
+        cartesian(arrays[1:], out=out[0:m,1:])
+        for j in xrange(1, arrays[0].size):
+            out[j*m:(j+1)*m,1:] = out[0:m,1:]
+    return out
+
+def fullgridsearch(hparamfile,generate):
+    # load hparams
+    hparams = []
+    names = []
+
+    for hparam in HparamReader(hparamfile):
+
+        if "generate" not in hparam or hparam["generate"] in ["default",""]:
+            if hparam["generate"]=="":
+                print "*** Warning ***"
+                print "    Hyperparameter",hparam["hparam"]
+                print "    Please set generation mode : default"
+
+            hparam["generate"] = generate
+
+        if 'default' in hparam:
+            hparam.pop("default")
+
+        names.append(hparam.pop("hparam"))
+        hparams.append(make_hparams(**hparam))
+
+    return names, cartesian(hparams)
+ 
+
+search_modes = {"random-search":randomsearch,
+		"fix-grid-search":fixgridsearch,
+		"full-grid-search":fullgridsearch}
+
 def error():
     print """Try `python gen_yaml.py --help` for more information"""
     sys.exit(2)
@@ -39,15 +230,19 @@ def show_help():
     print """
 Usage: python gen_yaml.py [OPTIONS] TEMPLATE-FILE H-PARAMETER-FILE
 Produce yaml files given a template and hyper-parameters ranges
-    -s FILE, --save=FILE    file name on which it builds yaml files {{1,2,3,...}}
-                            default = TEMPLATE-FILE{{1,2,3,...}}.yaml
-    -f, --force             Force yaml files creation even if files with the 
-                            same name already exist
-    -g, --generate=MODE     Generation mode. Applied to every learning rate.
-                            Locally defined generation mode has predominance
-                            {generation_modes}
+    -o FILE, --out=FILE    file name on which it builds yaml files {{1,2,3,...}}
+                           default = TEMPLATE-FILE{{1,2,3,...}}.yaml
+    -f, --force            Force yaml files creation even if files with th 
+                           same name already exist
+    -s, --search=MODE	   Search mode. 
+		           {search_modes}
+                           default : fix-grid-search
+    -g, --generate=MODE    Generation mode. Applied to every learning rate.
+                           Locally defined generation mode has predominance
+                           default, {generation_modes}
+                           default : log-uniform
                             
-    -v, --verbose           Verbose mode
+    -v, --verbose          Verbose mode
 
 File configurations:
 
@@ -61,17 +256,18 @@ File configurations:
         # Hyper-parameters  min     max     how much (optional generation mode)
 
 Example:
-    python gen_yaml.py --save=mlp template.yaml hparams.conf
-""".format(generation_modes=", ".join(generation_modes.keys()))
+    python gen_yaml.py --out=mlp template.yaml hparams.conf
+""".format(generation_modes=", ".join(generation_modes.keys()),search_modes=", ".join(search_modes.keys()))
 
 def main(argv):
     save = ""
     force = False
     generate = "log-uniform"
+    search_mode = "fix-grid-search"
 
     try:
-        opts, args = getopt.getopt(argv,"vhfs:g:",
-                        ["verbose","help","force","save=","generate="])
+        opts, args = getopt.getopt(argv,"vhfo:s:g:",
+                        ["verbose","help","force","out=","search=","generate="])
     except getopt.GetoptError as getopt_error:
         print getopt_error.msg, getopt_error.opt
         error()
@@ -85,58 +281,27 @@ def main(argv):
                 _verbose = True
             elif opt in ("-f","--force"):
                 force = True
-            elif opt in ("-s","--save"):
+            elif opt in ("-o","--out"):
                 save = re.sub('.yaml$','',arg)
             elif opt in ("-g","--generate"):
-                if arg not in ["log-random-uniform","log-uniform"]:
+                if arg not in generation_modes.keys():
                     print "generate MODE is invalid: " +arg
                     error()
                 generate = arg
+            elif opt in ("-s","--search"):
+                if arg not in search_modes.keys():
+                    print "search MODE is invalid: " +arg
+                    error()
+                search_mode = arg
+
+
 
     template, hparams = read_args(args)
 
     if not save:
         save = re.sub('.yaml$','',args[0])
 
-    hyperparams = {}#('learning_rate',[0.01])]
-    default_hparams = {}#{'learning_rate':0.1}
-
-    # load hparams
-    for line in hparams:
-        if line.strip(" ")[0]=="#" or line.strip(" ").strip("\n")=="": 
-            continue
-
-        line = line.strip(" ").strip("\n")
-
-        local_generate = ""
-
-        s_line = filter(lambda a:a.strip(' ')!='',line.split(' '))
-        s_line = [s.strip("\n").strip("\t") for s in s_line]
-       
-        if len(s_line)==5:
-            hparam, hpmin, hpmax, hpnb, local_generate = s_line
-        elif len(s_line)==4:
-            hparam, hpmin, hpmax, hpnb = s_line
-        else:
-            print "Incorrect hyper-parameter configuration"
-            print line.strip("\n")
-            print "# Hyper-parameters  min     max     how much"
-            error()
-
-        hpmin, hpmax, hpnb = float(hpmin), float(hpmax), int(hpnb)
-        hyperparams[hparam] = make_hparams(hpmin,hpmax,hpnb,
-                                local_generate if local_generate else generate)
-        if _verbose:
-            print hparam, " : ", hpmin, hpmax, hpnb
-            print "    ", hyperparams[hparam]
-
-        if ((local_generate and local_generate[:3]=="log") or 
-            (not local_generate and generate[:3]=="log")):
-            default_hparams[hparam] = np.exp((np.log(hpmax)+np.log(hpmin))/2.0)
-        else:
-            default_hparams[hparam] = (hpmax+hpmin)/2.0
-
-
+    hpnames, hpvalues = make_search(hparams,generate,search_mode)
 
     # fill template
     template = ''.join(template)
@@ -145,38 +310,42 @@ def main(argv):
 
     files = []
 
+    if hpvalues.shape[0]>40:
+        a = ""
+        while a not in ["y","n"]:
+            a = raw_input("Do you realy want to produce as much as %d yaml files? (y/n) " % hpvalues.shape[0])
+            if a=='n':
+                sys.exit(0)
+
+
     # save templates
-    for hparam, values in hyperparams.items():
-        default_hparam = default_hparams[hparam]
-        for value in values:
-            file_name = '%(save_path)s%(i)d' % {"save_path":save,"i":i}
+    for i, hparams in enumerate(hpvalues):
+        file_name = '%(save_path)s%(i)d' % {"save_path":save,"i":i}
 
-            default_hparams.update({hparam:value,'save_path':file_name})
+        d = dict(zip(hpnames,hparams))
 
-            try:
-                tmp_template = template % default_hparams
-            except KeyError as e:
-                print "The key %(e)s is not present in %(hparamsfile)s" % {'e':e,'hparamsfile':args[1]}
-                error()
+        d.update({'save_path':file_name})
 
-            file_name += '.yaml'
+        try:
+            tmp_template = template % d
+        except KeyError as e:
+            print "The key %(e)s is not present in %(hparamsfile)s" % {'e':e,'hparamsfile':args[1]}
+            error()
 
-            if os.path.exists(file_name) and not force:
-                print """file \"%(file)s\" already exists. 
-        Use --force option if you wish to overwrite them""" % {"file":file_name}
-                error()
-            else:
-                f = open(file_name,'w')
-                f.write(tmp_template)
-                f.close()
-            
-            default_hparams.pop('save_path')
-            files.append("%(file_name)s == %(hparams)s" % {"file_name":file_name,
-                         "hparams":', '.join([str(v) for v in default_hparams.items()])})
+        file_name += '.yaml'
 
-            i += 1
-
-        default_hparams[hparam] = default_hparam
+        if os.path.exists(file_name) and not force:
+            print """file \"%(file)s\" already exists. 
+Use --force option if you wish to overwrite them""" % {"file":file_name}
+            error()
+        else:
+            f = open(file_name,'w')
+            f.write(tmp_template)
+            f.close()
+        
+        d.pop('save_path')
+        files.append("%(file_name)s == %(hparams)s" % {"file_name":file_name,
+                     "hparams":', '.join([str(v) for v in d.items()])})
 
     f = open(save+".index",'w')
     f.write('\n'.join(files)+'\n')
@@ -185,7 +354,6 @@ def main(argv):
     if _verbose:
         print '\n'.join(files)+'\n'
 
-# open the file and set the tape string
 def read_args(args):
     if len(args)>2:
         print "Too many arguments given: ",len(args)
@@ -194,13 +362,21 @@ def read_args(args):
         print "Missing file arguments"
         error()
     else:
-       return open(args[0],'r').readlines(), open(args[1],'r').readlines()
+       return args[0], args[1]
 
-def make_hparams(hpmin,hpmax,hpnb,fct):
+def make_search(hparamfile,generate,search_mode):
     try:
-        return generation_modes[fct](hpmin,hpmax,hpnb)
+        return search_modes[search_mode](hparamfile,generate)
     except KeyError as e:
-        print "invalid generative function : ",fct
+        print "invalid search function : ",search_mode
+        print "Try ",", ".join(search_modes.keys())
+        error()
+
+def make_hparams(hpmin,hpmax,hpnb,generate):
+    try:
+        return generation_modes[generate](hpmin,hpmax,hpnb)
+    except KeyError as e:
+        print "invalid generative function : ",generate
         print "Try ",", ".join(generation_modes.keys())
         error()
 
