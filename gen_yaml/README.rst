@@ -8,7 +8,7 @@ hyper-parameters settings.
 
 Usage
 ****
-  python gen_yaml/__init__.py [OPTIONS] TEMPLATE-FILE H-PARAMETER-FILE
+  python gen_yaml.py [OPTIONS] TEMPLATE-FILE H-PARAMETER-FILE
 
 ::
 
