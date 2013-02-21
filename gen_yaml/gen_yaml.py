@@ -30,8 +30,8 @@ Produce yaml files given a template and hyper-parameters ranges
                                               specified. Should be used with
                                               a random generation mode, a warning
                                               message will show up otherwise.
-    -g, --generate=MODE    Generation mode. Applied to every learning rate.
-                           Locally defined generation mode has predominance
+    -g, --generate=MODE    Generation mode. Applied to every hyper-parameter with 
+                           default value. Locally defined generation mode has predominance
                            default = log-uniform
                            default, {generation_modes}
                             
