@@ -5,6 +5,7 @@ __contact__ = "xavier.bouthillier@umontreal.ca"
 
 import sys
 import os
+import re
 import numpy as np
 from collections import defaultdict
 
