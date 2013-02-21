@@ -51,7 +51,7 @@
     extensions: [
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
              channel_name: 'valid_y_misclass',
-             save_path: %(save_path)s_best.pkl"
+             save_path: "%(save_path)s_best.pkl"
         },
     ],
     save_path: "%(save_path)s.pkl",

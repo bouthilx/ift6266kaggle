@@ -1,13 +1,9 @@
 import sys
 import getopt
 import re
-from __init__ import generate_params, write_files, generation_modes, search_modes
+from __init__ import generate_params, write_files, generation_modes, search_modes, error
 
 _verbose = False
-
-def error():
-    print """Try `python gen_yaml.py --help` for more information"""
-    sys.exit(2)
 
 def show_help():
     print """

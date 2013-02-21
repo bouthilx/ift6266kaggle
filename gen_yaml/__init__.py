@@ -11,6 +11,10 @@ from collections import defaultdict
 
 __all__ = ["generate_params","write_files"]
 
+def error():
+    print """Try `python gen_yaml.py --help` for more information"""
+    sys.exit(2)
+
 generation_modes = {
     "log-uniform": 
         lambda hpmin, hpmax, hpnb :
@@ -222,6 +226,7 @@ search_modes = {"random-search":randomsearch,
 		"full-grid-search":fullgridsearch}
 
 def write_files(template,hpnames,hpvalues,save_path,force=False):
+    template = "".join(open(template,'r'))
     save_path = re.sub('.yaml$','',save_path)
 
     files = []
