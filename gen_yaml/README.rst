@@ -17,8 +17,18 @@ Usage
   -f, --force            Force yaml files creation even if files with th 
                          same name already exist
   -s, --search=MODE      Search mode. 
-                         fix-grid-search, full-grid-search, random-search
                          default : fix-grid-search
+                         fix-grid-search :  Vary hyper-parameters one at a 
+                                            time, keeping the others to a 
+                                            default value.
+                         full-grid-search : Compute all possible combinations
+                                            of hyper-parameters values that
+                                            has been generated
+                         random-search :    Generate random values for every
+                                            hyper-parameter given the range
+                                            specified. Should be used with
+                                            a random generation mode, a warning
+                                            message will show up otherwise.
   -g, --generate=MODE    Generation mode. Applied to every learning rate.
                          Generation modes defined in hyper-parameter configuration file have predominance.
                          default, random-uniform, log-uniform, log-random-uniform, uniform

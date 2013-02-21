@@ -18,12 +18,22 @@ Produce yaml files given a template and hyper-parameters ranges
     -f, --force            Force yaml files creation even if files with th 
                            same name already exist
     -s, --search=MODE	   Search mode. 
-		           {search_modes}
                            default : fix-grid-search
+                           fix-grid-search :  Vary hyper-parameters one at a 
+                                              time, keeping the others to a 
+                                              default value.
+                           full-grid-search : Compute all possible combinations
+                                              of hyper-parameters values that
+                                              has been generated
+                           random-search :    Generate random values for every
+                                              hyper-parameter given the range
+                                              specified. Should be used with
+                                              a random generation mode, a warning
+                                              message will show up otherwise.
     -g, --generate=MODE    Generation mode. Applied to every learning rate.
                            Locally defined generation mode has predominance
+                           default = log-uniform
                            default, {generation_modes}
-                           default : log-uniform
                             
     -v, --verbose          Verbose mode
 
@@ -40,7 +50,7 @@ File configurations:
 
 Example:
     python gen_yaml.py --out=mlp template.yaml hparams.conf
-""".format(generation_modes=", ".join(generation_modes.keys()),search_modes=", ".join(search_modes.keys()))
+""".format(generation_modes=", ".join(generation_modes.keys()))
 
 def main(argv):
     save = ""
