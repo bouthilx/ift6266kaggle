@@ -64,7 +64,7 @@ Run from code
 
   from gen_yaml import generate_params, write_files
 
-  # Generates a list of hyper-parameter names and a list of hyper-parameters values
+  # Generates a list of hyper-parameter names and a list of hyper-parameter values
   hpnames, hpvalues = generate_params(hparamfile="hparams.conf",generate="log-uniform",
                                       search_mode="fix-grid-search")
 
