@@ -1,9 +1,9 @@
 !obj:pylearn2.train.Train {
     dataset: &train !obj:contest_dataset.ContestDataset {
-		        which_set: 'train',
-		        start: 0,
-		        stop: 3000
-		},
+                        which_set: 'train',
+                        start: 0,
+                        stop: 3000
+                },
     model: !obj:pylearn2.models.mlp.MLP {
         layers:  [ !obj:pylearn2.models.mlp.RectifiedLinear {
                      layer_name: 'h0',
@@ -17,10 +17,9 @@
                 ],
        nvis: 2304,
     },
-    algorithm: !obj:pylearn2.training_algorithms.bgd.BGD {
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 100,
-	learning_rate: %(learning_rate)e,
-        conjugate: 1,
+        learning_rate: %(learning_rate)e,
         monitoring_dataset:
             {
                 'train' : *train,
