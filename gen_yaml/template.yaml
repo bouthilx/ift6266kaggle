@@ -7,7 +7,7 @@
     model: !obj:pylearn2.models.mlp.MLP {
         layers:  [ !obj:pylearn2.models.mlp.RectifiedLinear {
                      layer_name: 'h0',
-                     dim: 2000,
+                     dim: %(h_0)d,
                      sparse_init: 15,
                  }, !obj:pylearn2.models.mlp.Softmax {
                      layer_name: 'y',
@@ -45,6 +45,8 @@
         },
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: "valid_y_misclass"
+            prop_decrease: 0.,
+            N: 20
         }
     },
     extensions: [

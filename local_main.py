@@ -6,11 +6,11 @@ import contest_dataset
 
 import os
 
-DIR = "/home/xavier/ift6266kaggle/"
+DIR = "/home/xavier/ift6266kaggle/mlp/exp2/"
 
-OUT = DIR+"yaml/test.yaml"
-TEMPLATE = DIR+"gen_yaml/template.yaml"
-HPARAMS = DIR+"gen_yaml/hparams.conf"
+OUT = DIR+"yaml/second.yaml"
+TEMPLATE = DIR+"template.yaml"
+HPARAMS = DIR+"hparams.conf"
 
 if __name__ == "__main__":
 

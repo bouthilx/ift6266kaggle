@@ -7,7 +7,7 @@ import sys
 import os
 import re
 import numpy as np
-from collections import defaultdict
+from collections import OrderedDict
 
 __all__ = ["generate_params","write_files"]
 
@@ -49,10 +49,10 @@ class HparamReader():
         s_line = filter(lambda a:a.strip(' ')!='',[s.strip("\n").strip("\t") for s in s_line])
 
 
-        if len(s_line)< 4 or len(s_line)>6:
+        if len(s_line)!=6:
             print "Incorrect hyper-parameter configuration"
             print line.strip("\n")
-            print "# Hyper-parameters  min     max     how much"
+            print "# Hyper-parameters :: min :: max :: how much :: generation-mode :: default value"
             error()
 
         d = dict(zip(["hparam","hpmin","hpmax","hpnb","generate","default"],s_line))
@@ -68,15 +68,16 @@ class HparamReader():
         return d
 
 def randomsearch(hparamfile,generate):
+    """
+        Generate
+    """
 
-    hparams = []
-    names = []
-    hpnb = None
+    hparams = OrderedDict()
+    hpnbs = []
 
     for hparam in HparamReader(hparamfile):
         
-        if not hpnb:
-            hpnb = hparam['hpnb']
+        hpnbs.append(hparam['hpnb'])
 
         if "generate" not in hparam or hparam["generate"] in ["default",""]:
             if hparam["generate"]=="":
@@ -86,29 +87,34 @@ def randomsearch(hparamfile,generate):
 
             hparam["generate"] = generate
 
-        if 'default' in hparam:
-            hparam.pop('default')
+        hparam.pop('default')
 
-        hparam['hpnb'] = hpnb
+#        hparam['hpnb'] = max(hpnb,hparam['hpnb'])
 
         if "random" not in hparam["generate"]:
             print "*** Warning ***"
             print "    Hyperparameter",hparam["hparam"],": Random search, Generation function =", generate
             print "    Random search but not a random value generation? Are you sure that's what you want?"
 
-        names.append(hparam.pop("hparam"))
-        hparams.append(make_hparams(**hparam))
+        name = hparam.pop("hparam")
+        hparams[name] = hparams.get(name,[]) + list(make_hparams(**hparam))
 
-    values = np.zeros((sum([len(hparam) for hparam in hparams]),len(hparams)))
+    rand = []
+    while len(rand) < min(hpnbs):
+        r = int(np.random.rand(1)*min(hpnbs))
+        if r not in rand:
+            rand.append(r)
 
-    return names, np.transpose(np.array(hparams))
+    rand = np.array(rand)/(.0+min(hpnbs))
 
+    values = [np.array(hparam)[list(rand*len(hparam))] for hparam in hparams.values()]
+
+    return hparams.keys(), np.transpose(np.array(values))
 
 def fixgridsearch(hparamfile,generate):
 
-    hparams = []
-    dhparams = []
-    names = []
+    hparams = OrderedDict()
+    dhparams = OrderedDict()
 
     for hparam in HparamReader(hparamfile):
 
@@ -120,31 +126,23 @@ def fixgridsearch(hparamfile,generate):
 
             hparam["generate"] = generate
 
-        default = None
-        if "default" in hparam :
-            default = hparam.pop("default")
-            
+        dhparams[hparam['hparam']] = hparam.pop("default")
 
-        names.append(hparam.pop("hparam"))
-        hparams.append(make_hparams(**hparam))
+        name = hparam.pop("hparam")
+        hparams[name] = hparams.get(name,[]) + list(make_hparams(**hparam))
 
-        if not default:
-            default = hparams[-1][int(hparam['hpnb'])/2]
-
-        dhparams.append(default)
-
-
-
-    values = np.zeros((sum([len(hparam) for hparam in hparams]),len(hparams)))
+    values = np.zeros((sum([len(hparam) for hparam in hparams.values()]),len(hparams.keys())))
 
     j = 0
-    for i, hparam in enumerate(hparams):
-        values[j:j+len(hparam)] = np.array(dhparams)
-        values[j:j+len(hparam),i] = np.array(hparam)
+    for i, hparam in enumerate(hparams.items()):
+        # set all default values
+        values[j:j+len(hparam[1])] = np.array(dhparams.values())
+        # set the value of the current hyper-parameter
+        values[j:j+len(hparam[1]),i] = np.array(hparam[1])
 
-        j += len(hparam)
+        j += len(hparam[1])
 
-    return names, values
+    return hparams.keys(), values
 
 # http://stackoverflow.com/questions/1208118/using-numpy-to-build-an-array-of-all-combinations-of-two-arrays
 def cartesian(arrays, out=None):
@@ -198,9 +196,9 @@ def cartesian(arrays, out=None):
     return out
 
 def fullgridsearch(hparamfile,generate):
-    # load hparams
-    hparams = []
-    names = []
+
+    hparams = OrderedDict()
+    dhparams = OrderedDict()
 
     for hparam in HparamReader(hparamfile):
 
@@ -212,13 +210,15 @@ def fullgridsearch(hparamfile,generate):
 
             hparam["generate"] = generate
 
-        if 'default' in hparam:
-            hparam.pop("default")
+        hparam.pop("default")
 
-        names.append(hparam.pop("hparam"))
-        hparams.append(make_hparams(**hparam))
+        name = hparam.pop("hparam")
 
-    return names, cartesian(hparams)
+        hparams[name] = hparams.get(name,[]) + list(make_hparams(**hparam))
+
+    print "huh"
+
+    return hparams.keys(), cartesian(hparams.values())
  
 
 search_modes = {"random-search":randomsearch,
@@ -242,7 +242,7 @@ def write_files(template,hpnames,hpvalues,save_path,force=False):
     # save templates
     for i, hparams in enumerate(hpvalues):
         file_name = '%(save_path)s%(i)d' % {"save_path":save_path,"i":i}
-
+        
         d = dict(zip(hpnames,hparams))
 
         d.update({'save_path':file_name})
