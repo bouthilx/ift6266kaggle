@@ -11,14 +11,14 @@ show = [#1,
         #3,
         #4,
         #5,
-        #6,
+        6,
         #7,
-        #8,
-        #9,
-        #10,
+        8,
+        9,
+        10,
         #11,
         #12,
-        13,
+        #13,
         14]
 
 def zoom(im,c):
@@ -26,7 +26,9 @@ def zoom(im,c):
     y = np.random.rand(*im.shape)
     im = ndimage.zoom(im,c)
 
-    if c < 1.0:
+    print c
+
+    if c < 1.000000:
         y[(y.shape[0]-im.shape[0])/2.0:-(y.shape[0]-im.shape[0])/2.0,
           (y.shape[1]-im.shape[1])/2.0:-(y.shape[1]-im.shape[1])/2.0] = im
     else:
@@ -56,18 +58,22 @@ if 5 in show:
     pl.show()
 
 if 6 in show:
+    print 6
     pl.imshow(ndimage.gaussian_filter(lena,sigma=3),cmap="gray")
     pl.show()
 
 if 7 in show:
+    print 7
     pl.imshow(ndimage.gaussian_filter(lena,sigma=5),cmap="gray")
     pl.show()
 
 if 8 in show:
+    print 8
     pl.imshow(ndimage.uniform_filter(lena,size=11),cmap="gray")
     pl.show()
 
 if 9 in show:
+    print 9
     blurred_l = ndimage.gaussian_filter(lena, 3)
 
     filter_blurred_l = ndimage.gaussian_filter(blurred_l, 1)
@@ -78,6 +84,7 @@ if 9 in show:
     pl.show()
 
 if 10 in show:
+    print 10
     noisy = lena + 0.4 * lena.std() * np.random.random(lena.shape)
 
     gauss_denoised = ndimage.gaussian_filter(noisy, 2)
@@ -95,13 +102,4 @@ if 11 in show:
 if 12 in show:
     print "12"
     pl.imshow(zoom(lena,0.5),cmap="gray")
-    pl.show()
-
-if 13 in show:
-    m = np.array([[1,0,10],
-                  [0,1, 10],
-                  [0,0,1]])
-
-    # comment faire la translation??
-    pl.imshow(ndimage.interpolation.affine_transform(lena,m),cmap="gray")
     pl.show()

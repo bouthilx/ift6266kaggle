@@ -216,8 +216,6 @@ def fullgridsearch(hparamfile,generate):
 
         hparams[name] = hparams.get(name,[]) + list(make_hparams(**hparam))
 
-    print "huh"
-
     return hparams.keys(), cartesian(hparams.values())
  
 
