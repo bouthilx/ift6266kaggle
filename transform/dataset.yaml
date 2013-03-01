@@ -1,6 +1,7 @@
 !obj:contestTransformerDataset.TransformerDataset {
     raw : !obj:contest_dataset.ContestDataset {
         which_set: 'train',
+        base_path: '/home/xavier/data/ContestDataset',
         start: 0,
         stop: 3500,
     },
@@ -15,6 +16,8 @@
                     !obj:transformer.Denoising { p: 0.5 }
                 ],
             },
+            !obj:transformer.Occlusion {},
+            !obj:transformer.HalfFace {},
             !obj:transformer.Translation {},
             !obj:transformer.Scaling {},
             !obj:transformer.Rotation {},

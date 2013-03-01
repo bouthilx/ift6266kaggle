@@ -28,8 +28,9 @@ class TransformationPool:
         Apply one of the transformations given the probability distribution
         default : equal probability for every transformations
     """
-    def __init__(self,transformations,p_distribution=None,seed=None):
+    def __init__(self,transformations,p_distribution=None,seed=None,shape=None):
         self.transformations = transformations
+        self.shape = shape
 
         if p_distribution:
             self.p_distribution = p_distribution
@@ -40,10 +41,19 @@ class TransformationPool:
             np.random.RandomState(seed)
 
     def perform(self, X):
-        # randomly pick one transformation according to probability distribution
-        i = np.array(self.p_distribution).cumsum().searchsorted(np.random.sample(1))
+        shape = X.shape
+        if self.shape:
+            X = X.reshape(tuple([X.shape[0]]+self.shape))
 
-        return self.transformations[i](X)
+        print "perform Pool"
+
+        for i in xrange(X.shape[0]):
+            # randomly pick one transformation according to probability distribution
+            t = np.array(self.p_distribution).cumsum().searchsorted(np.random.sample(1))
+
+            X[i] = self.transformations[t].perform(X[i].reshape((1,48,48)))
+
+        return X
 
 def gen_mm_random(f,args,min,max,max_iteration=50):
     if not min:
@@ -141,8 +151,11 @@ class Rotation(RandomTransformation):
 
         return ndimage.rotate(x,degree,reshape=False)
 
-class Gaussian_Noise(RandomTransformation):
-    def __init__(self,p,sigma=3):
+class GaussianNoise(RandomTransformation):
+    def __init__(self,p,sigma=1.0):
+        """
+            Sigma: from 1.0 to 5.0
+        """
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
         pass
@@ -188,7 +201,7 @@ class Flipping(RandomTransformation):
         return np.fliplr(x)
       
 class Occlusion:
-    def __init__(self,p=0.10,nb=10,mean=25,std=10.0,min=2,max=None):
+    def __init__(self,p=0.05,nb=10,mean=4,std=10.0,min=2,max=1.0):
         self.__dict__.update(locals())
         pass
 
@@ -202,18 +215,28 @@ class Occlusion:
     def transform(self,image):
         nb = np.sum(np.random.random(self.nb)<self.p)
         for i in xrange(nb):
-            x = gen_mm_random(np.random.rand,dict(d0=1),
-                              0.0,(image.shape[0]-self.min-1)/(.0+image.shape[0]))
-            y = gen_mm_random(np.random.rand,dict(d0=1),
-                              0.0,(image.shape[1]-self.min-1)/(.0+image.shape[1]))
-            dx = gen_mm_random(np.random.rand,
-                               dict(loc=self.mean,scale=self.std),
-                               self.min,self.max)
-            dy = gen_mm_random(np.random.rand,
-                               dict(loc=self.mean,scale=self.std),
-                               self.min,self.max)
+            x = int(gen_mm_random(np.random.random_sample,dict(),
+                                  0.0,
+                                  min(self.max,
+                                      (image.shape[0]-self.mean-1)/(.0+image.shape[0]))
+                    )*image.shape[0]
+                )
 
-            image[x:x+dx,y:y+dy] = (np.random.rand(dx,dy)*255).astype(int)
+            y = int(gen_mm_random(np.random.random_sample,dict(),
+                                  0.0,
+                                  min(self.max,
+                                      (image.shape[1]-self.mean-1)/(.0+image.shape[1]))
+                    )*image.shape[1]
+                )
+
+            dx = int(gen_mm_random(np.random.normal,
+                               dict(loc=self.mean,scale=self.std),
+                               self.min,image.shape[0]-x))
+            dy = int(gen_mm_random(np.random.normal,
+                               dict(loc=self.mean,scale=self.std),
+                               self.min,image.shape[1]-y))
+
+            image[x:(x+dx),y:(y+dy)] = np.zeros((dx,dy)).astype(int)
 
         return image
 
@@ -224,10 +247,10 @@ class HalfFace(RandomTransformation):
         pass
 
     def transform(self,image):
-        x_center = image.shape[0]/2.0
-        y_center = image.shape[1]/2.0
+        x_center = image.shape[0]/2
+        y_center = image.shape[1]/2
         if np.random.rand(1) >= 0.5:
-            image[:x_center,:y_center] = (np.random.rand(image[:x_center,:y_center].shape)*255).astype(int)
+            image[:,:y_center] = np.zeros(image[:,:y_center].shape)#(np.random.rand(*image[:x_center,:y_center].shape)*255).astype(int)
         else:
-            image[x_center:,y_center:] = (np.random.rand(image[x_center:,y_center:].shape)*255).astype(int)
+            image[:,y_center:] = np.zeros(image[:,:y_center].shape)#(np.random.rand(*image[:,y_center:].shape)*255).astype(int)
         return image
