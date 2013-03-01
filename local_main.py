@@ -6,9 +6,9 @@ import contest_dataset
 
 import os
 
-DIR = "/home/xavier/ift6266kaggle/mlp/exp5/"
+DIR = "/home/xavier/ift6266kaggle/mlp/exp7/"
 
-OUT = DIR+"yaml/fourth.yaml"
+OUT = DIR+"yaml/huge.yaml"
 TEMPLATE = DIR+"template.yaml"
 HPARAMS = DIR+"hparams.conf"
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # hyper-parameter values
     hpnames, hpvalues = generate_params(hparamfile=HPARAMS,
                                         generate="log-uniform",
-                                        search_mode="full-grid-search")
+                                        search_mode="fix-grid-search")
 
     # Writes template with each hyper-parameter settings in  
     # succesive files and returns the name of the files

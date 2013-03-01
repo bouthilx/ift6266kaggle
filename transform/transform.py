@@ -104,9 +104,9 @@ def main(argv):
         error()
 
     X, y = t.load_dataset(load_path)
-    X, y = t.apply_transformations(X[:100],y[:100],transformations)
-#    t.save_dataset(X,y,save_path)
+    X, y = t.apply_transformations(X,y,transformations)
     t.show_samples(X,y,100)
+    t.save_dataset(X,y,save_path)
 
 def read_args(args):
     if len(args)!=3:

@@ -2,6 +2,7 @@ from scipy import ndimage, misc
 import pylab as pl
 import numpy as np
 import csv
+import sys
 
 from timer import seconds_to_string, Timer
 
@@ -259,6 +260,14 @@ def apply_transformations(X,y,transformations):
         nb = nb + nb * settings.get('ratio',2)
 
     print "A dataset of approximately %d images will we produced.." % nb
+       
+    if nb*257*2**20/(0.+2**30*33423)*4 > 4.0:
+        a = ""
+        while a not in ["y","n"]:
+            a = raw_input("This may use more than %dG of RAM. Do you want to continue? (y/n) " % (nb*257*2**20/(0.+2**30*33423)*4))
+            if a=='n':
+                sys.exit(0)
+
     t = Timer(nb)
     t.start()
 
