@@ -6,22 +6,59 @@ class TransformationPipeline:
         Apply transformations sequentially
     """
     # shape should we switched to Conv2DSpace or something similar to make space conversion more general
-    def __init__(self,transformations,seed=None,shape=None):
+    def __init__(self,transformations,seed=None,shape=None,input_space=None):
         self.transformations = transformations
-        self.shape = shape
+        self.input_space = input_space
 
         if seed:
             np.random.RandomState(seed)
 
     def perform(self, X):
+
+        print "Batch old shape : ",X.shape
+        
         shape = X.shape
-        if self.shape:
-            X = X.reshape(tuple([X.shape[0]]+self.shape))
+        if self.input_space:
+            # needs reshaping
+            if len(self.input_space.axes) != len(shape):
+                print "reshape data"
+                X = X.reshape([X.shape[0]]+self.input_space.shape+[self.input_space.num_channels])
+
+            # dimension transposition
+            else:
+                # How can we detect axes of X?
+                print "convert dimensions"
+                X = self.input_space.convert_numpy(X,self.input_space.axes,['b',0,1,'c'])
+
+#        shape = X.shape
+#        print "Batch shape :",shape
+#        if self.input_space:
+#            X = self.input_space.
+
+
+#        if self.shape:
+#            X = X.reshape(tuple([X.shape[0]]+self.shape))
+
+            # raw.view_converter.axes ?
+
+        print "Batch new shape : ",X.shape
 
         for transformation in self.transformations:
             X = transformation.perform(X)
 
-        return X.reshape(shape)
+        if self.input_space:
+            # needs reshaping
+            if len(self.input_space.axes) != len(shape):
+                X = X.reshape(shape)
+
+            # dimension transposition
+            else:
+                # How can we detect axes of X?
+                X = self.input_space.convert_numpy(X,['b',0,1,'c'],self.input_space.axes)
+
+        print "Batch out shape : ",X.shape
+
+        return X
 
 class TransformationPool:
     """
@@ -41,9 +78,9 @@ class TransformationPool:
             np.random.RandomState(seed)
 
     def perform(self, X):
-        shape = X.shape
-        if self.shape:
-            X = X.reshape(tuple([X.shape[0]]+self.shape))
+#        shape = X.shape
+#        if self.shape:
+#            X = X.reshape(tuple([X.shape[0]]+self.shape))
 
         print "perform Pool"
 
@@ -51,7 +88,7 @@ class TransformationPool:
             # randomly pick one transformation according to probability distribution
             t = np.array(self.p_distribution).cumsum().searchsorted(np.random.sample(1))
 
-            X[i] = self.transformations[t].perform(X[i].reshape((1,48,48)))
+#            X[i] = self.transformations[t].perform(X[i].reshape((1,48,48)))
 
         return X
 
@@ -94,14 +131,14 @@ class Translation(RandomTransformation):
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
 
-        self.I = np.identity(2)
+        self.I = np.identity(3)
 
     def transform(self,x):
 
         rx = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
         ry = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
 
-        return ndimage.affine_transform(x,self.I,offset=(rx,ry))
+        return ndimage.affine_transform(x,self.I,offset=(rx,ry,0))
 
 class Scaling(RandomTransformation):
     def __init__(self,p=1,mean=1.0,std=0.1,min=0.1,max=None):
@@ -115,21 +152,27 @@ class Scaling(RandomTransformation):
         zoom = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
         shape = x.shape
 
-        im = ndimage.zoom(x,zoom)
-        try:
-            im = self._crop(im,shape)
-        except ValueError as e:
-            im = x
+        im = np.zeros(x.shape)
+        # crop channels individually
+        for c in xrange(x.shape[2]):
+            im_c = ndimage.zoom(x[:,:,c],zoom)
 
-        if im.shape[0] != shape[0]:
-            return x
-
+            try:
+                im[:,:,c] = self._crop(im_c,shape)
+            except ValueError as e:
+                # won't crop so better return it already
+                return x
+    
         return im
 
     def _crop(self,x,shape):
+        """
+            in 2D (x,y)
+        """
         # noise or black pixels?
 #        y = np.random.rand(*shape)*255
         y = np.zeros(shape)
+
 
         if x.shape[0] < shape[0]:
             y[int((y.shape[0]-x.shape[0])/2.0+0.5):int(-(y.shape[0]-x.shape[0])/2.0),
@@ -137,6 +180,7 @@ class Scaling(RandomTransformation):
         else:
             y = x[int((x.shape[0]-y.shape[0])/2.0+0.5):int(-(x.shape[0]-y.shape[0])/2.0),
                   int((x.shape[1]-y.shape[1])/2.0+0.5):int(-(x.shape[1]-y.shape[1])/2.0)]
+
         return y
 
 class Rotation(RandomTransformation):
@@ -236,7 +280,7 @@ class Occlusion:
                                dict(loc=self.mean,scale=self.std),
                                self.min,image.shape[1]-y))
 
-            image[x:(x+dx),y:(y+dy)] = np.zeros((dx,dy)).astype(int)
+            image[x:(x+dx),y:(y+dy)] = np.zeros((dx,dy,image.shape[2])).astype(int)
 
         return image
 

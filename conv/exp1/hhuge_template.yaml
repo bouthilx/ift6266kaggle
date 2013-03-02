@@ -1,12 +1,38 @@
 !obj:pylearn2.train.Train {
-    dataset: &train !obj:contest_dataset.ContestDataset {
-        which_set: 'train',
-        base_path: '/home/xavier/ift6266kaggle/transform',
-        start: 0,
-        stop: 99999,
-        fit_preprocessor: True,
-        fit_test_preprocessor: True,
-        preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize { }
+    dataset: &train !obj:contestTransformerDatasetC01B.TransformerDataset {
+        raw : !obj:contest_dataset.ContestDataset {
+            which_set: 'train',
+            base_path: '/u/bouthilx/data/ContestDataset',
+            start: 0,
+            stop: 3500,
+            preprocessor : !obj:pylearn2.datasets.preprocessing.Standardize {},
+            fit_preprocessor: True,
+            fit_test_preprocessor: True,
+#            axes: ['c', 0, 1, 'b']
+        },
+        transformer : !obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [
+                !obj:transformer.TransformationPool {
+                    p_distribution: [0.4, 0.3, 0.3],
+                    transformations: [
+                        !obj:transformer.GaussianNoise { p: 0.5 },
+                        !obj:transformer.Sharpening { p: 0.5 },
+                        !obj:transformer.Denoising { p: 0.5 }
+                    ],
+                },
+                !obj:transformer.Occlusion {},
+                !obj:transformer.HalfFace {},
+                !obj:transformer.Translation {},
+                !obj:transformer.Scaling {},
+                !obj:transformer.Rotation {},
+                !obj:transformer.Flipping {}
+        ] },
+        space_preserving : True,
     },
     model: !obj:pylearn2.models.mlp.MLP {
         batch_size: 100,
@@ -47,7 +73,7 @@
                 'train' : *train,
                 'valid'  : !obj:contest_dataset.ContestDataset {
                               which_set: 'train',
-                              base_path: '/home/xavier/data/ContestDataset',
+                              base_path: '/u/bouthilx/data/ContestDataset',
                               start: 0,
                               stop: 4178,
                               preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize { },

@@ -3,9 +3,9 @@
                         which_set: 'train',
                         start: 0,
                         stop: 3000
-                },
+    },
     model: !obj:pylearn2.models.mlp.MLP {
-        layers:  [ !obj:pylearn2.models.mlp.RectifiedLinear {
+        layers: [ !obj:pylearn2.models.mlp.RectifiedLinear {
                      layer_name: 'h0',
                      dim: %(h_0)d,
                      sparse_init: 15,
@@ -28,7 +28,7 @@
                               start: 3001,
                               stop: 3500
                           },
-                'test'  : !obj:contest_dataset.ContestDataset {
+                'test' : !obj:contest_dataset.ContestDataset {
                               which_set: 'train',
                               start: 3501,
                               stop: 4170
