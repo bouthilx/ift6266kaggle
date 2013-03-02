@@ -22,6 +22,7 @@ class TransformerDataset(Dataset):
             transformer: a pylearn2 Block to transform the data
         """
         self.__dict__.update(locals())
+        self.view_converter = self.raw.view_converter #########################
         del self.self
 
     def get_batch_design(self, batch_size, include_labels=False):
