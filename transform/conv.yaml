@@ -1,8 +1,8 @@
 !obj:pylearn2.train.Train {
-    dataset: &train !obj:contestTransformerDatasetC01B.TransformerDataset {
+    dataset: &train !obj:contestTransformerDataset.TransformerDataset {
         raw : !obj:contest_dataset.ContestDataset {
             which_set: 'train',
-            base_path: '/u/bouthilx/data/ContestDataset',
+            base_path: '/home/xavier/data/ContestDataset',
             start: 0,
             stop: 3500,
             preprocessor : !obj:pylearn2.datasets.preprocessing.Standardize {},
@@ -73,7 +73,7 @@
                 'train' : *train,
                 'valid'  : !obj:contest_dataset.ContestDataset {
                               which_set: 'train',
-                              base_path: '/u/bouthilx/data/ContestDataset',
+                              base_path: '/home/xavier/data/ContestDataset',
                               start: 0,
                               stop: 4178,
                               preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize { },

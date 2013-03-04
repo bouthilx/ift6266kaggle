@@ -1,0 +1,80 @@
+# authors: Xavier Bouthillier and Pierre-Luc Carrier
+
+# A wrapper that applies transformations on raw training datasets 
+# but not on test datasets
+!obj:contestTransformerDataset.TransformerDataset {
+    raw : !obj:contest_dataset.ContestDataset {
+        which_set: 'train',
+#        base_path: '/home/xavier/data/ContestDataset',
+        start: 0,
+        stop: 3500,
+    },
+
+    # TransformationPipeline is a pipeline of transformations
+    # All the transformations are applied sequentially
+    # The order matters
+    transformer : !obj:transformer.TransformationPipeline { 
+
+        # Input space must be defined for transformation functions
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+            shape: [48, 48],       # shape of the images
+            num_channels: 1,       # color channels (RGB) (here 1 for gray values only)
+            axes: ['b',0,1,'c'],   # topology needed by the model (ConvNet, RBM, etc)
+                                   # 'b' stands for batch size, 0 and 1 are image dimensions
+                                   # and 'c' is channel size
+        },
+
+	# List of transformations that will be sequentially applied to data
+        transformations: [
+
+	    # TransformationPool is a Pool of transformations
+            # Only one transformation among them is applied on each call
+            !obj:transformer.TransformationPool {
+
+                # Probability distribution to pick a random transformation
+                p_distribution: [
+                    0.4,  # GaussianNoise is given 0.4 probability
+                    0.3,  # Sharpening is given 0.3 probability
+                    0.3   # Denoising is given 0.3 probability
+                ],   
+
+		# List of transformation candidates
+                transformations: [
+
+                    # Makes image noisy
+                    !obj:transformer.GaussianNoise { p: 0.5 },
+
+                    # Sharpen contrast of a noisy image (gives bad image quality)
+                    !obj:transformer.Sharpening { p: 0.5 },
+
+                    # Try to denoise a noisy image (gives bad imge quality)
+                    !obj:transformer.Denoising { p: 0.5 }
+                ],
+            },
+
+            # Sample random black boxes on image
+            !obj:transformer.Occlusion {},
+
+            # Occludes vertically half of the image
+            !obj:transformer.HalfFace {},
+
+            # Translates the image in x and y coordinates 
+            # translation is done in float and pixels values are interpolated
+            !obj:transformer.Translation {},
+
+            # Scales the image in x and y coordinates and crop it back to original image size.
+            # If the new image is smaller, the empty space is black.
+            !obj:transformer.Scaling {},
+
+            # Rotates the image with the center of the image as the point of rotation.
+            # Empty corners are left black.
+            !obj:transformer.Rotation {},
+
+            # Flips the image horizontally with the center of the image as the point of flipping.
+            # There is no need to flip the image in the center of the face, it is the same result.
+            !obj:transformer.Flipping {}
+    ] },
+
+    # What is that!?!?	
+    space_preserving : True,
+}

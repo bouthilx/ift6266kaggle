@@ -1,0 +1,153 @@
+# authors: Xavier Bouthillier and Pierre-Luc Carrier
+
+# A wrapper that applies transformations on raw training datasets 
+# but not on test datasets
+!obj:contestTransformerDataset.TransformerDataset {
+
+    raw : !obj:contest_dataset.ContestDataset {
+        which_set: 'train',
+#        base_path: '/home/xavier/data/ContestDataset',
+        start: 0,
+        stop: 3500,
+    },
+
+    # TransformationPipeline is a pipeline of transformations
+    # All the transformations are applied sequentially
+    # The order matters
+    transformer : !obj:transformer.TransformationPipeline { 
+
+        # Input space must be defined for transformation functions
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+            shape: [48, 48],        # shape of the images
+            num_channels: 1,        # color channels (RGB) (here 1 for gray values only)
+            axes: ['b',0,1,'c'],    # topology needed by the model (ConvNet, RBM, etc)
+                                    # 'b' stands for batch size, 0 and 1 are image dimensions
+                                    # and 'c' is channel size
+        },
+
+	# List of transformations that will be sequentially applied to data
+        transformations: [
+
+	    # TransformationPool is a Pool of transformations
+            # Only one transformation among them is applied on each call
+            !obj:transformer.TransformationPool {
+
+                # Probability distribution to pick a random transformation
+                p_distribution: [
+                    0.4,  # GaussianNoise is given 0.4 probability
+                    0.3,  # Sharpening is given 0.3 probability
+                    0.3   # Denoising is given 0.3 probability
+                ],   
+
+		# List of transformation candidates
+                transformations: [
+
+                    # Makes image noisy
+                    !obj:transformer.GaussianNoise { 
+                        p: 0.5,         # Probability that the noise is applied
+                        sigma: 2.0,     # Noise factor between 1.0 and 5.0
+                    },
+
+                    # Sharpen contrast of a noisy image (gives bad image quality)
+                    !obj:transformer.Sharpening { 
+                        p: 0.5,         # Probability that the noise is applied
+                        sigma: [3, 1],  # Noise factors between 1.0 and 5.0
+                        alpha: 30       # Contrast factor for sharpening
+                    },
+
+                    # Try to denoise a noisy image (gives bad imge quality)
+                    !obj:transformer.Denoising { 
+                        p: 0.0,         # Probability that the noise is applied
+                        sigma: [2, 3],  # Noise factors between 1.0 and 5.0
+                        alpha: 0.4,     # Variance amplificator for noise 
+                    }
+                ],
+            },
+
+            # Sample random black boxes on image
+            !obj:transformer.Occlusion { 
+                p: 0.05,                # probability that a box is rendered
+                nb: 10,                 # Number of possible box rendered
+                                        # (with probability p for each try)
+                random_fct: 'uniform',  # Random function from numpy to sample box sizes
+                                        # The random function to sample box positions 
+                                        # is random.uniform and there's no need to change it
+                fct_settings: {         # Settings for the random function
+                    low: 2.0,           # See numpy documentation for more details
+                    high: 20.0
+                },
+                min: 2,                 # Minimum/Maximum value accepted, resampled otherwise
+                max: None               # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+
+            # Occludes vertically half of the image
+            !obj:transformer.HalfFace {
+                p: 0.05                 # probability that half of an image is occluded
+            },
+
+            # Translates the image in x and y coordinates 
+            # translation is done in float and pixels values are interpolated
+            !obj:transformer.Translation { 
+                p: 1,                   # Probability that a translation is applied
+                random_fct: 'normal',   # Random function from numpy to sample translation in
+                                        # x and y coordinates
+                fct_settings: {         # Settings for the random function
+                    loc: 0.0,           # See numpy documentation for more details
+                    scale: 2.0
+                },
+                min: None,              # Minimum/Maximum value accepted, resampled otherwise
+                max: None               # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+
+            # Scales the image in x and y coordinates and crop it back to original image size.
+            # If the new image is smaller, the empty space is black.
+            !obj:transformer.Scaling {
+                p: 1,                   # Probability that a scaling is applied
+                random_fct: 'normal',   # Random function from numpy to sample scaling ratio
+                fct_settings: {         # Settings for the random function
+                    loc: 1.0,           # See numpy documentation for more details
+                    scale: 0.1
+                },
+                min: 0.1,               # Minimum/Maximum value accepted, resampled otherwise
+                max: 2.0                # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+
+            # Rotates the image with the center of the image as the point of rotation.
+            # Empty corners are left black.
+            !obj:transformer.Rotation { 
+                p: 1,                   # Probability that a rotation is applied
+                random_fct: 'normal',   # Random function from numpy to sample rotation angle
+                fct_settings: {         # Settings for the random function
+                    loc: 0.0,           # See numpy documentation for more details
+                    scale: 10.0
+                },
+                min: None,              # Minimum/Maximum value accepted, resampled otherwise
+                max: None               # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+
+            # Flips the image horizontally with the center of the image as the point of flipping.
+            # There is no need to flip the image in the center of the face, it is the same result.
+            !obj:transformer.Flipping {
+                p: 0.25                 # Probability that the image is flipped
+            }
+    ] },
+
+    # What is that!?!?
+    space_preserving : True,
+}
