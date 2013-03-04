@@ -1,6 +1,49 @@
 import numpy as np
 from scipy import ndimage, misc
 
+# Decorator to reshape batch data before and after transformations.
+# Transformations need a shape of ['b',0,1,'c']
+# The class to which belongs the wrapped function must have an attribute 
+# input_space which is a Conv2DSpace object.
+def reshape(default=['b',0,1,'c']):
+    def decorate(perform):
+        def call(self,X):
+            
+            # convert X shape
+            shape = X.shape
+            if self.input_space:
+                # needs reshaping
+                if len(self.input_space.axes) != len(shape):
+                    X = X.reshape([X.shape[0]]+self.input_space.shape+[self.input_space.num_channels])
+
+                # dimension transposition
+                else:
+                    # How can we detect axes of X?
+                    X = self.input_space.convert_numpy(X,self.input_space.axes,default)
+
+            # apply perform function
+
+            result = perform(self,X)
+
+            # revert X shape
+
+            if self.input_space:
+                # needs reshaping
+                if len(self.input_space.axes) != len(shape):
+                    X = X.reshape(shape)
+
+                # dimension transposition
+                else:
+                    # How can we detect axes of X?
+                    X = self.input_space.convert_numpy(X,default,self.input_space.axes)
+
+            return X
+
+        return call
+
+    return decorate
+ 
+
 class TransformationPipeline:
     """
         Apply transformations sequentially
@@ -13,50 +56,11 @@ class TransformationPipeline:
         if seed:
             np.random.RandomState(seed)
 
+    @reshape()
     def perform(self, X):
-
-        print "Batch old shape : ",X.shape
-        
-        shape = X.shape
-        if self.input_space:
-            # needs reshaping
-            if len(self.input_space.axes) != len(shape):
-                print "reshape data"
-                X = X.reshape([X.shape[0]]+self.input_space.shape+[self.input_space.num_channels])
-
-            # dimension transposition
-            else:
-                # How can we detect axes of X?
-                print "convert dimensions"
-                X = self.input_space.convert_numpy(X,self.input_space.axes,['b',0,1,'c'])
-
-#        shape = X.shape
-#        print "Batch shape :",shape
-#        if self.input_space:
-#            X = self.input_space.
-
-
-#        if self.shape:
-#            X = X.reshape(tuple([X.shape[0]]+self.shape))
-
-            # raw.view_converter.axes ?
-
-        print "Batch new shape : ",X.shape
 
         for transformation in self.transformations:
             X = transformation.perform(X)
-
-        if self.input_space:
-            # needs reshaping
-            if len(self.input_space.axes) != len(shape):
-                X = X.reshape(shape)
-
-            # dimension transposition
-            else:
-                # How can we detect axes of X?
-                X = self.input_space.convert_numpy(X,['b',0,1,'c'],self.input_space.axes)
-
-        print "Batch out shape : ",X.shape
 
         return X
 
@@ -65,9 +69,9 @@ class TransformationPool:
         Apply one of the transformations given the probability distribution
         default : equal probability for every transformations
     """
-    def __init__(self,transformations,p_distribution=None,seed=None,shape=None):
+    def __init__(self,transformations,p_distribution=None,seed=None,input_space=None):
         self.transformations = transformations
-        self.shape = shape
+        self.input_space = input_space
 
         if p_distribution:
             self.p_distribution = p_distribution
@@ -77,26 +81,22 @@ class TransformationPool:
         if seed:
             np.random.RandomState(seed)
 
+    @reshape()
     def perform(self, X):
-#        shape = X.shape
-#        if self.shape:
-#            X = X.reshape(tuple([X.shape[0]]+self.shape))
-
-        print "perform Pool"
 
         for i in xrange(X.shape[0]):
             # randomly pick one transformation according to probability distribution
             t = np.array(self.p_distribution).cumsum().searchsorted(np.random.sample(1))
 
-#            X[i] = self.transformations[t].perform(X[i].reshape((1,48,48)))
+            X[i] = self.transformations[t].perform(X[i])
 
         return X
 
 def gen_mm_random(f,args,min,max,max_iteration=50):
-    if not min:
+    if min==None or min=="None":
         min = -1e99
 
-    if not max:
+    if max==None or max=="None":
         max = 1e99
 
     i = 0
@@ -127,7 +127,9 @@ class RandomTransformation:
         return X
 
 class Translation(RandomTransformation):
-    def __init__(self,p=1,mean=0.0,std=1.0,min=None,max=None):
+    def __init__(self,p=1,random_fct='normal',fct_settings=None,min=None,max=None):
+        if not fct_settings:
+            fct_settings = dict(loc=0.0,scale=2.0)
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
 
@@ -135,13 +137,16 @@ class Translation(RandomTransformation):
 
     def transform(self,x):
 
-        rx = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
-        ry = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
+        rx = gen_mm_random(np.random.__dict__[self.random_fct],self.fct_settings,self.min,self.max)
+        ry = gen_mm_random(np.random.__dict__[self.random_fct],self.fct_settings,self.min,self.max)
 
         return ndimage.affine_transform(x,self.I,offset=(rx,ry,0))
 
 class Scaling(RandomTransformation):
-    def __init__(self,p=1,mean=1.0,std=0.1,min=0.1,max=None):
+    def __init__(self,p=1,random_fct='normal',fct_settings=None,min=0.1,max=None):
+        if not fct_settings:
+            fct_settings = dict(loc=1.0,scale=0.1)
+ 
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
 
@@ -149,7 +154,7 @@ class Scaling(RandomTransformation):
 
     def transform(self, x):
 
-        zoom = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
+        zoom = gen_mm_random(np.random.__dict__[self.random_fct],self.fct_settings,self.min,self.max)
         shape = x.shape
 
         im = np.zeros(x.shape)
@@ -184,14 +189,18 @@ class Scaling(RandomTransformation):
         return y
 
 class Rotation(RandomTransformation):
-    def __init__(self,p=1,mean=0.0,std=10.0,min=None,max=None):
+    def __init__(self,p=1,random_fct='normal',fct_settings=None,min=None,max=None):
+        if not fct_settings:
+            fct_settings = dict(loc=0.0,scale=10.0)
+ 
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
+
         pass
 
     def transform(self,x):
 
-        degree = gen_mm_random(np.random.normal,dict(loc=self.mean,scale=self.std),self.min,self.max)
+        degree = gen_mm_random(np.random.__dict__[self.random_fct],self.fct_settings,self.min,self.max)
 
         return ndimage.rotate(x,degree,reshape=False)
 
@@ -209,20 +218,20 @@ class GaussianNoise(RandomTransformation):
         return ndimage.gaussian_filter(x,self.sigma)
 
 class Sharpening(RandomTransformation):
-    def __init__(self,p,sigma1=3,sigma2=1,alpha=30):
+    def __init__(self,p,sigma=[3,1],alpha=30):
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
         pass
 
     def transform(self,x):
 
-        blurred_l = ndimage.gaussian_filter(x, self.sigma1)
+        blurred_l = ndimage.gaussian_filter(x, self.sigma[0])
 
-        filter_blurred_l = ndimage.gaussian_filter(blurred_l, self.sigma2)
+        filter_blurred_l = ndimage.gaussian_filter(blurred_l, self.sigma[1])
         return blurred_l + self.alpha * (blurred_l - filter_blurred_l)
 
 class Denoising(RandomTransformation):
-    def __init__(self,p,sigma1=2,sigma2=3,alpha=0.4):
+    def __init__(self,p,sigma=[2,3],alpha=0.4):
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
         pass
@@ -230,12 +239,12 @@ class Denoising(RandomTransformation):
     def transform(self,x):
         noisy = x + self.alpha * x.std() * np.random.random(x.shape)
 
-        gauss_denoised = ndimage.gaussian_filter(noisy, self.sigma1)
+        gauss_denoised = ndimage.gaussian_filter(noisy, self.sigma[0])
 
-        return ndimage.median_filter(noisy, self.sigma2)
+        return ndimage.median_filter(noisy, self.sigma[1])
 
 class Flipping(RandomTransformation):
-    def __init__(self,p=1,min=None,max=None):
+    def __init__(self,p=0.25):
         RandomTransformation.__init__(self,p)
         self.__dict__.update(locals())
         pass
@@ -245,7 +254,14 @@ class Flipping(RandomTransformation):
         return np.fliplr(x)
       
 class Occlusion:
-    def __init__(self,p=0.05,nb=10,mean=4,std=10.0,min=2,max=1.0):
+
+    # Random function given as a parameter controls the size of the boxes, not their positions
+    # Boxes potisions are sampled with numpy.random.random_sample
+ 
+    def __init__(self,p=0.05,nb=10,random_fct='uniform',fct_settings=None,min=2,max=None):
+        if not fct_settings:
+            fct_settings = dict(low=2.0,high=20.0)
+            
         self.__dict__.update(locals())
         pass
 
@@ -259,26 +275,19 @@ class Occlusion:
     def transform(self,image):
         nb = np.sum(np.random.random(self.nb)<self.p)
         for i in xrange(nb):
-            x = int(gen_mm_random(np.random.random_sample,dict(),
-                                  0.0,
-                                  min(self.max,
-                                      (image.shape[0]-self.mean-1)/(.0+image.shape[0]))
-                    )*image.shape[0]
-                )
 
-            y = int(gen_mm_random(np.random.random_sample,dict(),
-                                  0.0,
-                                  min(self.max,
-                                      (image.shape[1]-self.mean-1)/(.0+image.shape[1]))
-                    )*image.shape[1]
-                )
+            dx = int(gen_mm_random(np.random.__dict__[self.random_fct],
+                               self.fct_settings,
+                               self.min,image.shape[0]-2))
+            dy = int(gen_mm_random(np.random.__dict__[self.random_fct],
+                               self.fct_settings,
+                               self.min,image.shape[1]-2))
 
-            dx = int(gen_mm_random(np.random.normal,
-                               dict(loc=self.mean,scale=self.std),
-                               self.min,image.shape[0]-x))
-            dy = int(gen_mm_random(np.random.normal,
-                               dict(loc=self.mean,scale=self.std),
-                               self.min,image.shape[1]-y))
+            x = int(gen_mm_random(np.random.uniform,dict(low=0,high=image.shape[0]-dx),
+                                  0,image.shape[0]-dx))
+
+            y = int(gen_mm_random(np.random.uniform,dict(low=0,high=image.shape[0]-dy),
+                                  0,image.shape[1]-dy))
 
             image[x:(x+dx),y:(y+dy)] = np.zeros((dx,dy,image.shape[2])).astype(int)
 
