@@ -36,7 +36,7 @@ Transformations file configuration:
         flip      ratio=1
 
 Example:
-    python transformation.py -t transform.conf dataset.csv extended.csv
+    python transformation.py transform.conf dataset.csv extended.csv
 """
 
 def convert_params(name,value):
