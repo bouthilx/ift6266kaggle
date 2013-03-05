@@ -1,9 +1,11 @@
+# author: Pierre-Luc Carrier
+
 !obj:pylearn2.train.Train {
 
     dataset: &train !obj:contestTransformerDataset.TransformerDataset {
         raw : !obj:contest_dataset.ContestDataset {
             which_set: 'train',
-            base_path: '/home/xavier/data/ContestDataset',
+#            base_path: '/home/xavier/data/ContestDataset',
             start: 0,
             stop: 3500,
             preprocessor : !obj:pylearn2.datasets.preprocessing.Standardize {},
@@ -72,7 +74,7 @@
                 'train' : *train,
                 'test'  : !obj:contest_dataset.ContestDataset {
                     which_set: 'train',
-                    base_path: '/home/xavier/data/ContestDataset',
+#                    base_path: '/home/xavier/data/ContestDataset',
                     start: 3500,
                     stop: 4100,
                     preprocessor : !obj:pylearn2.datasets.preprocessing.Standardize {},
