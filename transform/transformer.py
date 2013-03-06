@@ -163,7 +163,7 @@ class Scaling(RandomTransformation):
             im_c = ndimage.zoom(x[:,:,c],zoom)
 
             try:
-                im[:,:,c] = self._crop(im_c,shape)
+                im[:,:,c] = self._crop(im_c,shape[:2])
             except ValueError as e:
                 # won't crop so better return it already
                 return x
@@ -174,8 +174,6 @@ class Scaling(RandomTransformation):
         """
             in 2D (x,y)
         """
-        # noise or black pixels?
-#        y = np.random.rand(*shape)*255
         y = np.zeros(shape)
 
 
