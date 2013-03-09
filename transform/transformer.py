@@ -74,6 +74,8 @@ class TransformationPool:
         self.input_space = input_space
 
         if p_distribution:
+            if np.sum(p_distribution)<0.9999 or np.sum(p_distribution)>1.0001:
+                raise ValueError("p_distribution does not sum to 1")
             self.p_distribution = p_distribution
         else:
             self.p_distribution = np.ones(len(transformations))/(.0+len(transformations))
@@ -88,7 +90,7 @@ class TransformationPool:
             # randomly pick one transformation according to probability distribution
             t = np.array(self.p_distribution).cumsum().searchsorted(np.random.sample(1))
 
-            X[i] = self.transformations[t].perform(X[i])
+            X[i] = self.transformations[t[0]].perform(X[i])
 
         return X
 
@@ -223,10 +225,10 @@ class Sharpening(RandomTransformation):
 
     def transform(self,x):
 
-        blurred_l = ndimage.gaussian_filter(x, self.sigma[0])
+        blurred_l = ndimage.gaussian_filter(x, int(self.sigma[0]))
 
-        filter_blurred_l = ndimage.gaussian_filter(blurred_l, self.sigma[1])
-        return blurred_l + self.alpha * (blurred_l - filter_blurred_l)
+        filter_blurred_l = ndimage.gaussian_filter(blurred_l, int(self.sigma[1]))
+        return blurred_l + int(self.alpha) * (blurred_l - filter_blurred_l)
 
 class Denoising(RandomTransformation):
     def __init__(self,p,sigma=[2,3],alpha=0.4):

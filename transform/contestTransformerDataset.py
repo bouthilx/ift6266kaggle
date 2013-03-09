@@ -31,6 +31,7 @@ class TransformerDataset(Dataset):
             X, y = raw
         else:
             X = raw
+        pX = X.copy()
         X = self.transformer.perform(X)
         if include_labels:
             return X, y

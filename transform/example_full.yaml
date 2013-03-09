@@ -6,7 +6,7 @@
 
     raw : !obj:contest_dataset.ContestDataset {
         which_set: 'train',
-#        base_path: '/home/xavier/data/ContestDataset',
+        base_path: '/home/xavier/data/ContestDataset',
         start: 0,
         stop: 3500,
     },
@@ -25,10 +25,10 @@
                                     # and 'c' is channel size
         },
 
-	# List of transformations that will be sequentially applied to data
+        # List of transformations that will be sequentially applied to data
         transformations: [
 
-	    # TransformationPool is a Pool of transformations
+            # TransformationPool is a Pool of transformations
             # Only one transformation among them is applied on each call
             !obj:transformer.TransformationPool {
 
@@ -39,7 +39,7 @@
                     0.3   # Denoising is given 0.3 probability
                 ],   
 
-		# List of transformation candidates
+                # List of transformation candidates
                 transformations: [
 
                     # Makes image noisy
@@ -57,7 +57,7 @@
 
                     # Try to denoise a noisy image (gives bad imge quality)
                     !obj:transformer.Denoising { 
-                        p: 0.0,         # Probability that the noise is applied
+                        p: 0.5,         # Probability that the noise is applied
                         sigma: [2, 3],  # Noise factors between 1.0 and 5.0
                         alpha: 0.4,     # Variance amplificator for noise 
                     }
