@@ -5,7 +5,7 @@
 !obj:contestTransformerDataset.TransformerDataset {
     raw : !obj:contest_dataset.ContestDataset {
         which_set: 'train',
-        base_path: '/home/xavier/data/ContestDataset',
+#        base_path: '/home/xavier/data/ContestDataset',
         start: 0,
         stop: 3500,
     },
