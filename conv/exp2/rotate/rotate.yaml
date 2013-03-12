@@ -1,0 +1,26 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Rotates the image with the center of the image as the point of rotation.
+            # Empty corners are left black.
+            !obj:transformer.Rotation {
+                p: %(p)f,               # Probability that a rotation is applied
+                random_fct: 'normal',   # Random function from numpy to sample rotation angle
+                fct_settings: {         # Settings for the random function
+                    loc: 0.0,           # See numpy documentation for more details
+                    scale: %(scale)f
+                },
+                min: None,              # Minimum/Maximum value accepted, resampled otherwise
+                max: None               # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+        ] 
+}

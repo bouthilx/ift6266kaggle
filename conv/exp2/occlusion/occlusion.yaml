@@ -1,0 +1,24 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Sample random black boxes on image
+            !obj:transformer.Occlusion {
+                p: %(p)f,               # probability that a box is rendered
+                nb: %(nb)d,             # Number of possible box rendered
+                                        # (with probability p for each try)
+                random_fct: 'uniform',  # Random function from numpy to sample box sizes
+                                        # The random function to sample box positions 
+                                        # is random.uniform and there's no need to change it
+                fct_settings: {         # Settings for the random function
+                    low: %(low)d,       # See numpy documentation for more details
+                    high: %(high)d,
+                }
+            }
+
+        ] 
+}

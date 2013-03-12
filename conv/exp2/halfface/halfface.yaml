@@ -1,0 +1,15 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Occludes vertically half of the image
+            !obj:transformer.HalfFace {
+                p: %(p)f                # probability that half of an image is occluded
+            }
+
+        ] 
+}

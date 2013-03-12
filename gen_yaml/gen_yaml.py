@@ -93,7 +93,7 @@ def main(argv):
     # fill template
     template = ''.join(template)
 
-    write_files(template,hpnames,hpvalues,save,force=force)
+    write_files(''.join(open(template,'r')),hpnames,hpvalues,save,force=force)
 
     if _verbose:
         print '\n'.join(files)+'\n'

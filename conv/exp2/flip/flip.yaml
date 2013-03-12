@@ -1,0 +1,16 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Flips the image horizontally with the center of the image as the point of flipping.
+            # There is no need to flip the image in the center of the face, it is the same result.
+            !obj:transformer.Flipping {
+                p: %(p)f                 # Probability that the image is flipped
+            }
+
+        ] 
+}

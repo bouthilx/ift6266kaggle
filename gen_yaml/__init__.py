@@ -224,7 +224,7 @@ search_modes = {"random-search":randomsearch,
 		"full-grid-search":fullgridsearch}
 
 def write_files(template,hpnames,hpvalues,save_path,force=False):
-    template = "".join(open(template,'r'))
+#    template = "".join(open(template,'r'))
     save_path = re.sub('.yaml$','',save_path)
 
     files = []

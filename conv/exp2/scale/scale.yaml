@@ -1,0 +1,26 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Scales the image in x and y coordinates and crop it back to original image size.
+            # If the new image is smaller, the empty space is black.
+            !obj:transformer.Scaling {
+                p: %(p)f,               # Probability that a scaling is applied
+                random_fct: 'normal',   # Random function from numpy to sample scaling ratio
+                fct_settings: {         # Settings for the random function
+                    loc: 1.0,           # See numpy documentation for more details
+                    scale: %(scale)f
+                },
+                min: 0.1,               # Minimum/Maximum value accepted, resampled otherwise
+                max: 2.0                # until it finds a valid value or until 50 tries.
+                                        # Be cautious when you set min/max values regarding 
+                                        # what the random_fct can generate. It is computationnaly
+                                        # expensive to resample too often, so an Exception is raised
+                                        # if 50 tries fail and the trainning crash.
+            },
+        ] 
+}

@@ -1,0 +1,16 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Makes image noisy
+            !obj:transformer.GaussianNoise {
+                p: %(p)f,                # Probability that the noise is applied
+                sigma: %(sigma)f         # Noise factor between 1.0 and 5.0
+            },
+
+        ] 
+}

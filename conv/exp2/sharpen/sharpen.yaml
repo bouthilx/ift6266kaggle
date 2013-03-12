@@ -1,0 +1,18 @@
+!obj:transformer.TransformationPipeline { 
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+                axes: ['b', 0, 1, 'c'],
+            },
+            transformations: [ 
+
+            # Sharpen contrast of a noisy image (gives bad image quality)
+            !obj:transformer.Sharpening {
+                p: %(p)f,                         # Probability that the noise is applied
+                sigma: [%(sigma1)f, %(sigma2)f],  # Noise factors between 1.0 and 5.0
+                alpha: %(alpha)d                  # Contrast factor for sharpening
+            },
+
+
+        ] 
+}
