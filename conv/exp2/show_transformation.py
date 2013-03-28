@@ -5,7 +5,6 @@ import ast
 template = """!obj:contestTransformerDataset.TransformerDataset {
     raw : !obj:contest_dataset.ContestDataset {
             which_set: 'train',
-            base_path: '/home/xavier/data/ContestDataset',
             start: 0,
             stop: 4000,
     },
@@ -13,7 +12,7 @@ template = """!obj:contestTransformerDataset.TransformerDataset {
     space_preserving : True,
 }"""
 
-DIR = "/home/xavier/ift6266kaggle/conv/exp2/"
+DIR = "/u/bouthilx/projects/ift6266kaggle/conv/exp2/"
 
 t_yaml = sys.argv[1]
 
@@ -40,12 +39,10 @@ print "Params",params
 template = template % {"transformation":"".join(open(DIR+t_name+"/"+t_yaml,'r'))}
 template = template % params
 
-print template
-
 template_path = DIR+t_name+"/yaml/dataset_template"+t_id+".yaml"
 
 t_file = open(template_path,"w")
 t_file.write(template)
 t_file.close()
 
-os.system("python ~/projects/pylearn2/pylearn2/scripts/show_examples.py %s" % template_path)
+os.system("python ~/pylearn2/pylearn2/scripts/show_examples.py --out=%s %s" % (template_path.replace(".yaml",".png"), template_path))

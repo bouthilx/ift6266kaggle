@@ -1,5 +1,10 @@
 import numpy as np
+from theano import config
 from scipy import ndimage, misc
+from pylearn2.train_extensions import TrainExtension
+from pylearn2.monitor import Monitor
+from pylearn2.gui import patch_viewer
+from bezier import bezier_curve
 
 # Decorator to reshape batch data before and after transformations.
 # Transformations need a shape of ['b',0,1,'c']
@@ -204,6 +209,156 @@ class Rotation(RandomTransformation):
 
         return ndimage.rotate(x,degree,reshape=False)
 
+class SaveTransform(TrainExtension):
+    """
+        Save a png of the transform every i epoch
+    """
+    def __init__(self, freq, save_path, rows=20, cols=20, rescale='global'):
+        """
+            freq: how often a png is saved
+            save_path: should contain %d to save the epoch number
+        """
+ 
+        self.__dict__.update(locals())
+        del self.self
+        self._initialized = False
+
+    def on_monitor(self, model, dataset, algorithm):
+
+        if self.rescale == 'none':
+            global_rescale = False
+            patch_rescale = False
+        elif self.rescale == 'global':
+            global_rescale = True
+            patch_rescale = False
+        elif self.rescale == 'individual':
+            global_rescale = False
+            patch_rescale = True
+        else:
+            assert False
+
+        # implement saving from show_examples
+        examples = dataset.get_batch_topo(self.rows*self.cols)
+        examples = dataset.adjust_for_viewer(examples)
+
+        if global_rescale:
+            examples /= np.abs(examples).max()
+
+        if examples.shape[3] == 1:
+            is_color = False
+        elif examples.shape[3] == 3:
+            is_color = True
+
+        pv = patch_viewer.PatchViewer( (self.rows, self.cols), examples.shape[1:3], is_color=is_color)
+        for i in xrange(self.rows*self.cols):
+            pv.add_patch(examples[i,:,:,:], activation = 0.0, rescale = patch_rescale)
+
+#        pv.show()
+
+        pv.save(self.save_path % len(model.monitor.channels[model.monitor.channels.keys()[0]].val_record))
+        print "dataset image saved"
+        
+
+class VanishingNoise(TrainExtension):
+    """
+        Makes the noise smaller over epochs
+    """
+    def __init__(self, start, var, noiseClass, channel_name=None, half_life= None, bezier=False,
+                 bezier1=True,bezier_count=100):
+        """
+            start: the epoch on which to start shrinking the learning rate
+            var:   the variable name to vanish
+            noiseClass: the noise class that needs to vanish
+            channel_name: 
+            half_life: how many epochs after start it will take for the learning rate
+                       to lose half its value for the first time
+                        (to lose the next half of its value will take twice
+                        as long)
+        """
+ 
+        self.__dict__.update(locals())
+        del self.self
+        self._initialized = False
+        self._count = 0
+        assert start >= 0
+        if half_life is None:
+            self.half_life = start + 1
+        else:
+            assert half_life > 0
+
+        if not self.channel_name:
+            self.channel_name = self.var+"_vanishing_noise"
+
+        assert isinstance(noiseClass,type(Denoising)), "noiseClass is not a class definition"
+
+    def _get_noiseClass(self, transformer):
+        if (isinstance(transformer,TransformationPipeline) or 
+            isinstance(transformer,TransformationPool)):
+            c = None
+            for transformation in transformer.transformations:
+                try:
+                    c = self._get_noiseClass(transformation)
+                except RuntimeError:
+                    c = None
+
+                if isinstance(c,self.noiseClass):
+                    return c
+
+        elif isinstance(transformer,self.noiseClass):
+            return transformer
+
+        raise RuntimeError("The noise class %s is not present in the dataset" % str(self.noiseClass))
+
+    def on_monitor(self, model, dataset, algorithm):
+        noiseClass = self._get_noiseClass(dataset.transformer)
+        
+        if not self._initialized:
+            monitor = Monitor.get_monitor(model)
+            monitor.add_channel(name=self.channel_name,
+                                ipt=model.get_input_space().make_theano_batch(),
+                                val=noiseClass.__dict__[self.var],
+                                dataset=dataset)
+
+            self._init_val = noiseClass.__dict__[self.var].get_value()
+            self._initialized = True
+
+            if self.bezier:
+                if self.bezier1:
+                    points = np.array([(0,0), (1.,0.),(1.,0.),(1,1)])
+                else:
+                    points = np.array([(0,0), (.45,.13),(.62,.64),(1,1)])
+                xvals, yvals = bezier_curve(points,self.bezier_count*100)
+                xvals = xvals*self.bezier_count
+                yvals = yvals*self._init_val
+
+                xis = []
+                r_xvals = np.array(list(reversed(xvals)))
+
+                for i in range(self.bezier_count):
+                    xis.append(r_xvals.searchsorted(i)) 
+                xis.append(yvals.shape[0]-1)
+                                                    
+                xvals = np.array(list(reversed(xvals)))
+                yvals = np.array(list(reversed(yvals)))
+                                                                
+                xs = xvals[xis]
+                self.bezier_ys = list(reversed(yvals[xis]))
+
+        self._count += 1
+
+        noiseClass.__dict__[self.var].set_value(np.cast[config.floatX](self.current_val()))
+
+    def current_val(self):
+        if self.bezier:
+            return self.bezier_ys[self._count] if self._count < len(self.bezier_ys) else self.bezier_ys[-1]
+        else:
+            if self._count < self.start:
+                scale = 1
+            else:
+                scale = float(self.half_life) / float(self._count - self.start +self.half_life)
+
+            return self._init_val * scale
+
 class GaussianNoise(RandomTransformation):
     def __init__(self,p,sigma=1.0):
         """
@@ -229,6 +384,14 @@ class Sharpening(RandomTransformation):
 
         filter_blurred_l = ndimage.gaussian_filter(blurred_l, int(self.sigma[1]))
         return blurred_l + int(self.alpha) * (blurred_l - filter_blurred_l)
+
+class Noise(RandomTransformation):
+    def __init__(self,p,alpha=1.0):
+        RandomTransformation.__init__(self,p)
+        self.__dict__.update(locals())
+
+    def transform(self,x):
+        return x + self.alpha.get_value()*x.std()*np.random.random(x.shape)
 
 class Denoising(RandomTransformation):
     def __init__(self,p,sigma=[2,3],alpha=0.4):
