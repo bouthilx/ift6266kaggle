@@ -1,0 +1,93 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:contestTransformerDataset.TransformerDataset {
+        raw : !obj:contest_dataset.ContestDataset {
+            which_set: 'train',
+            start: 0,
+            stop: 3456,
+            preprocessor : !obj:pylearn2.datasets.preprocessing.Standardize {},
+            fit_preprocessor: True,
+            fit_test_preprocessor: True,
+        },
+        transformer : !obj:transformer.TransformationPipeline {
+            input_space: !obj:pylearn2.space.Conv2DSpace {
+                shape: [48, 48],
+                num_channels: 1,
+         },
+            transformations: [
+
+                !obj:transformer.Occlusion {
+                    p: 1.0,
+                    nb: 10,
+                    fct_settings: {
+                        low: 10.0,  
+                        high: 15.0
+                    },
+                },
+        ] },
+        space_preserving : True,
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        batch_size: 64,
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+            shape: [48, 48],
+            num_channels: 1
+     },
+        layers: [ !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h0',
+                     output_channels: 64,
+                     irange: .05,
+                     kernel_shape: [5, 5],
+                     pool_shape: [4, 4],
+                     pool_stride: [3, 3],
+                     max_kernel_norm: 1.9365,
+                     border_mode: 'full'
+                 }, !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h1',
+                     output_channels: 64,
+                     irange: .05,
+                     kernel_shape: [5, 5],
+                     pool_shape: [4, 4],
+                     pool_stride: [3, 3],
+                     max_kernel_norm: 1.9365,
+                     border_mode: 'full'
+                 }, !obj:pylearn2.models.mlp.Softmax {
+                     max_col_norm: 1.9365,
+                     layer_name: 'y',
+                     n_classes: 7,
+                     istdev: .05
+                 }
+                ],
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 64,
+        learning_rate: 1e-1,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:contest_dataset.ContestDataset {
+                              which_set: 'train',
+                              start: 3456,
+                              stop: 4160,
+                              preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize { },
+                              fit_preprocessor: True
+                          }
+            },
+        cost: !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+                supervised: 1
+         },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 30
+        }
+    },
+    extensions:
+        [ !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "conv_transform_best1.pkl"
+        }, !obj:pylearn2.training_algorithms.sgd.OneOverEpoch {
+                start: 15,
+        }
+    ],
+}
