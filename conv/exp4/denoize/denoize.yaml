@@ -1,6 +1,0 @@
-# Try to denoise a noisy image (gives bad image quality)
-!obj:transformer.Denoising {
-    p: %(p)f,                         # Probability that the noise is applied
-    sigma: [3, 1],  # Noise factors between 1.0 and 5.0
-    alpha: 0.7,                 # Variance amplificator for noise 
-}

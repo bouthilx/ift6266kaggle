@@ -15,7 +15,6 @@
          },
             transformations: [
 
-                # If the new image is smaller, the empty space is black.
                 !obj:transformer.Scaling { 
                     p: 0.8,
                     fct_settings: {
