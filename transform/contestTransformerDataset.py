@@ -23,6 +23,7 @@ class TransformerDataset(Dataset):
         """
         self.__dict__.update(locals())
         self.view_converter = self.raw.view_converter #########################
+        self.y = self.raw.y
         del self.self
 
     def get_batch_design(self, batch_size, include_labels=False):
@@ -36,6 +37,9 @@ class TransformerDataset(Dataset):
         if include_labels:
             return X, y
         return X
+
+    def get_topo_batch_axis(self):
+        return self.view_converter.axes.index('b')
 
     def get_test_set(self):
         return self.raw.get_test_set()

@@ -163,9 +163,9 @@ class Scaling(RandomTransformation):
 
         zoom = gen_mm_random(np.random.__dict__[self.random_fct],self.fct_settings,self.min,self.max)
         shape = x.shape
-
         im = np.zeros(x.shape)
         # crop channels individually
+        print x.shape
         for c in xrange(x.shape[2]):
             im_c = ndimage.zoom(x[:,:,c],zoom)
 
@@ -174,7 +174,9 @@ class Scaling(RandomTransformation):
             except ValueError as e:
                 # won't crop so better return it already
                 return x
-    
+
+        # balance channels
+
         return im
 
     def _crop(self,x,shape):
@@ -470,3 +472,36 @@ class HalfFace(RandomTransformation):
         else:
             image[:,y_center:] = np.zeros(image[:,:y_center].shape)#(np.random.rand(*image[:,y_center:].shape)*255).astype(int)
         return image
+
+if __name__ == "__main__":
+
+    import matplotlib.pyplot as plt
+
+    d = np.load('/data/afew/facetubes/sample.npy')
+    print d.shape
+
+#    plt.imshow(d)
+#    plt.show()
+
+    # translation
+#    t = Translation(p=1,random_fct='normal',fct_settings=dict(loc=0.0,scale=10.0),min=None,max=None)
+#    plt.imshow(t.transform(d))
+#    plt.show()
+
+    # scale
+#    t = Scaling(1,random_fct='normal',fct_settings=dict(loc=1.0,scale=0.2),min=0.1,max=None)
+#    i = t.transform(d).astype('uint8')
+#    plt.imshow(i)
+#    plt.show()
+
+    # rotation
+#    t = Rotation(p=1,random_fct='normal',fct_settings=dict(loc=0.0,scale=20.0),min=None,max=None)
+#    i = t.transform(d)
+#    plt.imshow(i)
+#    plt.show()
+
+    # occlusion
+#    t = Occlusion(p=0.5,nb=10,random_fct='uniform',fct_settings=None,min=2,max=None)
+#    i = t.transform(d)
+#    plt.imshow(i)
+#    plt.show()
